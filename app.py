@@ -3,6 +3,7 @@ import requests
 import io
 from PIL import Image
 import urllib.parse
+import time
 
 # Page Configuration & Professional Styling
 st.set_page_config(
@@ -37,7 +38,7 @@ st.markdown("""
 # Sidebar Configuration for Pro Dashboard
 st.sidebar.title("🎛️ Studio Control Panel")
 st.sidebar.markdown("---")
-st.sidebar.success("✨ Engine Status: Active & Free\n🚀 Ready for Bulk Generation")
+st.sidebar.success("✨ Engine Status: Active & Free\n🚀 Auto-Retry Flow Enabled")
 
 st.sidebar.markdown("### ⚙️ Design Modes")
 art_mode = st.sidebar.selectbox(
@@ -68,6 +69,23 @@ with col2:
     st.markdown("<br>", unsafe_allow_html=True)
     generate_btn = st.button("🚀 Generate Bulk Art", use_container_width=True)
 
+# Robust Image Fetching Function with Auto-Retry & Fallback Models
+def fetch_image_with_fallback(prompt, seed):
+    models = ["flux", "turbo", "flux-realism"]
+    encoded_prompt = urllib.parse.quote(prompt)
+    
+    for model in models:
+        for attempt in range(2):  # 2 retries per model
+            try:
+                url = f"https://pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&seed={seed}&model={model}&nologo=true"
+                response = requests.get(url, timeout=30)
+                
+                if response.status_code == 200 and 'image' in response.headers.get('Content-Type', ''):
+                    return Image.open(io.BytesIO(response.content))
+            except Exception:
+                time.sleep(1)  # Chota delay retry se pehle
+    return None
+
 if generate_btn:
     if not user_prompt:
         st.error("⚠️ Barahbani kisi object, theme ya curriculum topic ka naam likhein.")
@@ -86,35 +104,26 @@ if generate_btn:
         
         cols = st.columns(num_images if num_images <= 3 else 3)
         
-        try:
-            for i in range(num_images):
-                with st.spinner(f"Rendering variant {i+1} of {num_images}..."):
-                    seed = 3000 + i
-                    encoded_prompt = urllib.parse.quote(final_prompt)
-                    image_url = f"https://pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
-                    
-                    response = requests.get(image_url, timeout=60)
-                    
-                    # Check if response is actually an image content-type
-                    if response.status_code == 200 and 'image' in response.headers.get('Content-Type', ''):
-                        image = Image.open(io.BytesIO(response.content))
+        for i in range(num_images):
+            with st.spinner(f"Rendering variant {i+1} of {num_images} (auto-connecting)..."):
+                seed = 4000 + (i * 10)
+                image = fetch_image_with_fallback(final_prompt, seed)
+                
+                target_col = cols[i % len(cols)]
+                with target_col:
+                    if image:
+                        st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_container_width=True)
                         
-                        target_col = cols[i % len(cols)]
-                        with target_col:
-                            st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
-                            
-                            buf = io.BytesIO()
-                            image.save(buf, format="PNG")
-                            byte_im = buf.getvalue()
-                            
-                            st.download_button(
-                                label=f"📥 Download #{i+1}",
-                                data=byte_im,
-                                file_name=f"{user_prompt.replace(' ', '_')}_variant_{i+1}.png",
-                                mime="image/png",
-                                key=f"dl_{i}_{seed}"
-                            )
+                        buf = io.BytesIO()
+                        image.save(buf, format="PNG")
+                        byte_im = buf.getvalue()
+                        
+                        st.download_button(
+                            label=f"📥 Download #{i+1}",
+                            data=byte_im,
+                            file_name=f"{user_prompt.replace(' ', '_')}_variant_{i+1}.png",
+                            mime="image/png",
+                            key=f"dl_{i}_{seed}"
+                        )
                     else:
-                        st.warning(f"Variant {i+1} ke liye server thoda busy tha, dobara try karein.")
-        except Exception as ex:
-            st.error(f"Generation error: {ex}")
+                        st.error(f"Variant {i+1} generate nahi ho saka. Barahbani dobara click karein.")
