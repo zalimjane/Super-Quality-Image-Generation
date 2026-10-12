@@ -3,116 +3,101 @@ import requests
 import io
 from PIL import Image
 import urllib.parse
-import time
 
-# Page Configuration & Professional Styling
+# Page Configuration
 st.set_page_config(
-    page_title="NexusArt Pro Studio | AI Tracing & Vector Generator", 
-    page_icon="🎨", 
+    page_title="Meigen-Style AI Studio & Prompt Gallery", 
+    page_icon="✨", 
     layout="wide"
 )
 
+# Custom Styling for Clean Look
 st.markdown("""
     <style>
-    .main {
-        background-color: #f8f9fa;
-    }
+    .main { background-color: #f8f9fa; }
     .stButton>button {
-        background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
+        background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%);
         color: white;
         font-weight: bold;
         border-radius: 8px;
         padding: 0.6rem 1.2rem;
         border: none;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .card {
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.sidebar.title("🎛️ Studio Control Panel")
-st.sidebar.markdown("---")
-st.sidebar.success("✨ Engine Status: Active & Optimized")
+# Sidebar Navigation
+st.sidebar.title("🌟 Navigation")
+page = st.sidebar.radio("Go to:", ["🎨 Live Generator", "📚 Prompt Gallery"])
 
-art_mode = st.sidebar.selectbox(
-    "Select Art Style:", 
-    [
-        "Classic Line Art (Tracing & Coloring Books)", 
-        "Color Tracing & Vector Illustration", 
-        "Flat Colors with 3D Depth Feel"
-    ]
-)
-
-num_images = st.sidebar.slider("Bulk Quantity (Images):", min_value=1, max_value=5, value=1)
-
-st.title("🎨 NexusArt Pro Studio")
-st.write("Professional-grade bulk image generator for preschool curricula, worksheets, coloring books, and vector tracing.")
-st.markdown("---")
-
-col1, col2 = st.columns([3, 1])
-with col1:
-    user_prompt = st.text_input(
-        "Enter your creative prompt or object:", 
-        placeholder="e.g., Cute cartoon dinosaur, alphabet letter A, space rocket..."
-    )
-
-with col2:
-    st.markdown("<br>", unsafe_allow_html=True)
-    generate_btn = st.button("🚀 Generate Bulk Art", use_container_width=True)
-
-if generate_btn:
-    if not user_prompt:
-        st.error("⚠️ Barahbani kisi object ya theme ka naam likhein.")
-    else:
-        # Prompt ko safe length aur format mein rakhna taaki URL error na aaye
-        clean_prompt = user_prompt[:150]
+if page == "🎨 Live Generator":
+    st.title("✨ Free AI Image & Vector Studio")
+    st.write("Meigen.ai ki tarah apnay pasandida prompts likhein aur foran free high-quality images generate karein.")
+    st.markdown("---")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        user_prompt = st.text_area("Enter your prompt:", placeholder="e.g., Cute 3D isometric room, minimalist vector illustration, product photography...")
+        art_style = st.selectbox("Select Style Mode:", ["Default / Realistic", "Minimalist Line Art", "Flat 3D Vector", "Vibrant Digital Art"])
         
-        if art_mode == "Classic Line Art (Tracing & Coloring Books)":
-            style_suffix = ", minimalist coloring book page, pure white background, crisp black outlines, vector line art, no shading, ideal for kids tracing."
-        elif art_mode == "Color Tracing & Vector Illustration":
-            style_suffix = ", clean vector illustration, vibrant flat colors, crisp outlines, pure white background, kids book art."
-        else:
-            style_suffix = ", vector art with smooth clean flat colors, soft vector shading giving 3D depth feel, pure white background."
-
-        final_prompt = f"{clean_prompt}{style_suffix}"
-        
-        st.markdown(f"### 📦 Generating {num_images} High-Quality Image(s)...")
-        
-        cols = st.columns(num_images if num_images <= 3 else 3)
-        
-        for i in range(num_images):
-            with st.spinner(f"Rendering variant {i+1}..."):
-                seed = 5000 + (i * 15)
-                encoded_prompt = urllib.parse.quote(final_prompt)
-                image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
+        if st.button("🚀 Generate Image", use_container_width=True):
+            if not user_prompt:
+                st.error("Barahbani prompt darj karein.")
+            else:
+                style_map = {
+                    "Default / Realistic": "",
+                    "Minimalist Line Art": ", minimalist coloring book line art, pure white background, crisp outlines",
+                    "Flat 3D Vector": ", smooth flat colors, subtle 3D depth, clean studio background",
+                    "Vibrant Digital Art": ", vibrant colors, high contrast, digital illustration masterpiece"
+                }
                 
-                success = False
-                image = None
+                final_prompt = user_prompt + style_map[art_style]
                 
-                for attempt in range(3):
+                with st.spinner("Generating your image..."):
                     try:
-                        response = requests.get(image_url, timeout=45)
-                        if response.status_code == 200 and len(response.content) > 1000:
-                            image = Image.open(io.BytesIO(response.content))
-                            success = True
-                            break
-                    except Exception:
-                        time.sleep(1.5)
-                
-                target_col = cols[i % len(cols)]
-                with target_col:
-                    if success and image:
-                        st.image(image, caption=f"Variant {i+1}", use_column_width=True)
+                        encoded = urllib.parse.quote(final_prompt)
+                        url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true"
+                        response = requests.get(url, timeout=60)
                         
-                        buf = io.BytesIO()
-                        image.save(buf, format="PNG")
-                        byte_im = buf.getvalue()
-                        
-                        st.download_button(
-                            label=f"📥 Download #{i+1}",
-                            data=byte_im,
-                            file_name=f"artwork_v{i+1}.png",
-                            mime="image/png",
-                            key=f"dl_{i}_{seed}"
-                        )
-                    else:
-                        st.error(f"Variant {i+1} load nahi ho saka. Dobara koshish karein.")
+                        if response.status_code == 200:
+                            img = Image.open(io.BytesIO(response.content))
+                            st.success("Image successfully generated!")
+                            st.image(img, caption=user_prompt, use_column_width=True)
+                            
+                            # Download option
+                            buf = io.BytesIO()
+                            img.save(buf, format="PNG")
+                            st.download_button("📥 Download Image", data=buf.getvalue(), file_name="generated_art.png", mime="image/png")
+                        else:
+                            st.error("Server busy hai, dobara koshish karein.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+elif page == "📚 Prompt Gallery":
+    st.title("📌 Community Prompt Gallery")
+    st.write("Yahan aap tayyar shuda prompts dekh sakte hain aur unhe copy karke generator mein istemal kar sakte hain.")
+    st.markdown("---")
+    
+    # Sample Gallery Cards (Jaise Meigen par hota hai)
+    gallery_items = [
+        {"title": "3D Isometric Tiny House", "prompt": "Cute 3D isometric tiny house, cozy lighting, soft pastel colors, clean white background", "cat": "3D & Illustration"},
+        {"title": "Alphabet Tracing Letter A", "prompt": "Minimalist black and white outline letter A with an apple for kids coloring book, clean vector", "cat": "Education"},
+        {"title": "Product Perfume Bottle", "prompt": "Luxury perfume bottle mockup floating in water splash, vibrant studio lighting, commercial photography", "cat": "Ads & Product"}
+    ]
+    
+    for item in gallery_items:
+        st.markdown(f"""
+            <div class='card'>
+                <h4>📌 {item['title']}</h4>
+                <p><b>Category:</b> {item['cat']}</p>
+                <p><code>{item['prompt']}</code></p>
+            </div>
+        """, unsafe_allow_html=True)
