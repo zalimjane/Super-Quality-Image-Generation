@@ -70,8 +70,8 @@ if generate_btn:
     elif not user_prompt:
         st.error("⚠️ Barahbani kisi object ya theme ka naam likhein.")
     else:
-        # Updated stable Hugging Face Router endpoint
-        API_URL = "https://router.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        # Using a highly stable and fast free model endpoint (FLUX.1-schnell)
+        API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
         headers = {"Authorization": f"Bearer {api_key}"}
         
         # Style mapping based on user selection
@@ -89,11 +89,11 @@ if generate_btn:
         cols = st.columns(num_images if num_images <= 3 else 3)
         
         for i in range(num_images):
-            payload = {"inputs": final_prompt, "parameters": {"seed": 42 + i}}
+            payload = {"inputs": final_prompt}
             
-            with st.spinner(f"Generating image {i+1} of {num_images}..."):
+            with st.spinner(f"Generating image {i+1} of {num_images}... (First run might take 20s to load model)"):
                 try:
-                    response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+                    response = requests.post(API_URL, headers=headers, json=payload, timeout=90)
                     
                     if response.status_code == 200:
                         image_bytes = response.content
