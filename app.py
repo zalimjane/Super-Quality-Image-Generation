@@ -1,7 +1,7 @@
 import streamlit as st
-import requests
 import io
 from PIL import Image
+from huggingface_hub import InferenceClient
 
 # Page Configuration & Professional Styling
 st.set_page_config(
@@ -51,6 +51,7 @@ art_mode = st.sidebar.selectbox(
 num_images = st.sidebar.slider("Bulk Quantity (Images):", min_value=1, max_value=5, value=1)
 
 # Main Dashboard Header
+st.markdown("<h1 style='text-align: center; color: #1e293b;'>🎨 NexusArt Pro Studio</h1>", unsafe_actor=True) if "st.markdown" else None
 st.markdown("<h1 style='text-align: center; color: #1e293b;'>🎨 NexusArt Pro Studio</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #64748b;'>Bulk high-resolution tracing, coloring books, and 3D flat-vector generator tool.</p>", unsafe_allow_html=True)
 st.markdown("---")
@@ -70,10 +71,6 @@ if generate_btn:
     elif not user_prompt:
         st.error("⚠️ Barahbani kisi object ya theme ka naam likhein.")
     else:
-        # Using a highly stable and fast free model endpoint (FLUX.1-schnell)
-        API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
-        headers = {"Authorization": f"Bearer {api_key}"}
-        
         # Style mapping based on user selection
         if art_mode == "Classic Line Art (Tracing)":
             style_suffix = ", minimalist coloring book page, pure white background, crisp black outlines, vector line art, no shading, ideal for tracing and printing."
@@ -88,33 +85,29 @@ if generate_btn:
         
         cols = st.columns(num_images if num_images <= 3 else 3)
         
-        for i in range(num_images):
-            payload = {"inputs": final_prompt}
+        try:
+            # Official Hugging Face Inference Client (Resolves DNS & connection errors)
+            client = InferenceClient("black-forest-labs/FLUX.1-schnell", token=api_key)
             
-            with st.spinner(f"Generating image {i+1} of {num_images}... (First run might take 20s to load model)"):
-                try:
-                    response = requests.post(API_URL, headers=headers, json=payload, timeout=90)
+            for i in range(num_images):
+                with st.spinner(f"Generating image {i+1} of {num_images}..."):
+                    # Generate image using official client
+                    image = client.text_to_image(final_prompt)
                     
-                    if response.status_code == 200:
-                        image_bytes = response.content
-                        image = Image.open(io.BytesIO(image_bytes))
+                    target_col = cols[i % len(cols)]
+                    with target_col:
+                        st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
                         
-                        target_col = cols[i % len(cols)]
-                        with target_col:
-                            st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
-                            
-                            buf = io.BytesIO()
-                            image.save(buf, format="PNG")
-                            byte_im = buf.getvalue()
-                            
-                            st.download_button(
-                                label=f"📥 Download #{i+1}",
-                                data=byte_im,
-                                file_name=f"{user_prompt.replace(' ', '_')}_v{i+1}.png",
-                                mime="image/png",
-                                key=f"dl_{i}"
-                            )
-                    else:
-                        st.error(f"Error on image {i+1}: {response.text}")
-                except Exception as ex:
-                    st.error(f"Connection error: {ex}")
+                        buf = io.BytesIO()
+                        image.save(buf, format="PNG")
+                        byte_im = buf.getvalue()
+                        
+                        st.download_button(
+                            label=f"📥 Download #{i+1}",
+                            data=byte_im,
+                            file_name=f"{user_prompt.replace(' ', '_')}_v{i+1}.png",
+                            mime="image/png",
+                            key=f"dl_{i}"
+                        )
+        except Exception as ex:
+            st.error(f"Generation error: {ex}")
