@@ -50,9 +50,9 @@ art_mode = st.sidebar.selectbox(
 
 num_images = st.sidebar.slider("Bulk Quantity (Images):", min_value=1, max_value=5, value=1)
 
-# Main Dashboard Header
-st.markdown("<h1 style='text-align: center; color: #1e293b;'>🎨 NexusArt Pro Studio</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #64748b;'>Bulk high-resolution tracing, coloring books, and 3D flat-vector generator tool.</p>", unsafe_allow_html=True)
+# Main Dashboard Header (Using safe Streamlit native components)
+st.title("🎨 NexusArt Pro Studio")
+st.write("Bulk high-resolution tracing, coloring books, and 3D flat-vector generator tool.")
 st.markdown("---")
 
 # User Input Section
@@ -94,7 +94,7 @@ if generate_btn:
                     
                     target_col = cols[i % len(cols)]
                     with target_col:
-                        st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
+                        st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_container_width=True)
                         
                         buf = io.BytesIO()
                         image.save(buf, format="PNG")
