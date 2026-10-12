@@ -28,13 +28,6 @@ st.markdown("""
     .stButton>button:hover {
         background: linear-gradient(90deg, #4338ca 0%, #2563eb 100%);
     }
-    .card {
-        padding: 20px;
-        border-radius: 10px;
-        background-color: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -42,12 +35,11 @@ st.markdown("""
 st.sidebar.title("🎛️ Control Panel")
 st.sidebar.markdown("---")
 
-# Secure API Key Handling (Streamlit Secrets se uthayega, bar-bar paste nahi karna parega)
+# Secure API Key Handling (Streamlit Secrets se uthayega)
 api_key = ""
 try:
     api_key = st.secrets["HUGGINGFACE_API_KEY"]
 except:
-    # Fallback agar secrets set na hon toh sidebar me input le lega (lekin ek hi baar)
     api_key = st.sidebar.text_input("Hugging Face API Key:", type="password")
 
 st.sidebar.markdown("### ⚙️ Generation Settings")
@@ -78,7 +70,8 @@ if generate_btn:
     elif not user_prompt:
         st.error("⚠️ Barahbani kisi object ya theme ka naam likhein.")
     else:
-        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        # Updated stable Hugging Face Router endpoint
+        API_URL = "https://router.huggingface.co/models/runwayml/stable-diffusion-v1-5"
         headers = {"Authorization": f"Bearer {api_key}"}
         
         # Style mapping based on user selection
@@ -96,31 +89,32 @@ if generate_btn:
         cols = st.columns(num_images if num_images <= 3 else 3)
         
         for i in range(num_images):
-            # Seed change karne se bulk me mukhtalif variations milti hain
             payload = {"inputs": final_prompt, "parameters": {"seed": 42 + i}}
             
             with st.spinner(f"Generating image {i+1} of {num_images}..."):
-                response = requests.post(API_URL, headers=headers, json=payload)
-                
-                if response.status_code == 200:
-                    image_bytes = response.content
-                    image = Image.open(io.BytesIO(image_bytes))
+                try:
+                    response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
                     
-                    target_col = cols[i % len(cols)]
-                    with target_col:
-                        st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
+                    if response.status_code == 200:
+                        image_bytes = response.content
+                        image = Image.open(io.BytesIO(image_bytes))
                         
-                        # Download Button for each image
-                        buf = io.BytesIO()
-                        image.save(buf, format="PNG")
-                        byte_im = buf.getvalue()
-                        
-                        st.download_button(
-                            label=f"📥 Download #{i+1}",
-                            data=byte_im,
-                            file_name=f"{user_prompt.replace(' ', '_')}_v{i+1}.png",
-                            mime="image/png",
-                            key=f"dl_{i}"
-                        )
-                else:
-                    st.error(f"Error on image {i+1}: {response.text}")
+                        target_col = cols[i % len(cols)]
+                        with target_col:
+                            st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
+                            
+                            buf = io.BytesIO()
+                            image.save(buf, format="PNG")
+                            byte_im = buf.getvalue()
+                            
+                            st.download_button(
+                                label=f"📥 Download #{i+1}",
+                                data=byte_im,
+                                file_name=f"{user_prompt.replace(' ', '_')}_v{i+1}.png",
+                                mime="image/png",
+                                key=f"dl_{i}"
+                            )
+                    else:
+                        st.error(f"Error on image {i+1}: {response.text}")
+                except Exception as ex:
+                    st.error(f"Connection error: {ex}")
