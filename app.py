@@ -51,7 +51,6 @@ art_mode = st.sidebar.selectbox(
 num_images = st.sidebar.slider("Bulk Quantity (Images):", min_value=1, max_value=5, value=1)
 
 # Main Dashboard Header
-st.markdown("<h1 style='text-align: center; color: #1e293b;'>🎨 NexusArt Pro Studio</h1>", unsafe_actor=True) if "st.markdown" else None
 st.markdown("<h1 style='text-align: center; color: #1e293b;'>🎨 NexusArt Pro Studio</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #64748b;'>Bulk high-resolution tracing, coloring books, and 3D flat-vector generator tool.</p>", unsafe_allow_html=True)
 st.markdown("---")
@@ -86,12 +85,11 @@ if generate_btn:
         cols = st.columns(num_images if num_images <= 3 else 3)
         
         try:
-            # Official Hugging Face Inference Client (Resolves DNS & connection errors)
+            # Official Hugging Face Inference Client
             client = InferenceClient("black-forest-labs/FLUX.1-schnell", token=api_key)
             
             for i in range(num_images):
                 with st.spinner(f"Generating image {i+1} of {num_images}..."):
-                    # Generate image using official client
                     image = client.text_to_image(final_prompt)
                     
                     target_col = cols[i % len(cols)]
