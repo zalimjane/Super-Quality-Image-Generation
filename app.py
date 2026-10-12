@@ -1,7 +1,8 @@
 import streamlit as st
+import requests
 import io
 from PIL import Image
-from huggingface_hub import InferenceClient
+import urllib.parse
 
 # Page Configuration & Professional Styling
 st.set_page_config(
@@ -34,13 +35,7 @@ st.markdown("""
 # Sidebar Configuration for Dashboard Settings
 st.sidebar.title("🎛️ Control Panel")
 st.sidebar.markdown("---")
-
-# Secure API Key Handling (Streamlit Secrets se uthayega)
-api_key = ""
-try:
-    api_key = st.secrets["HUGGINGFACE_API_KEY"]
-except:
-    api_key = st.sidebar.text_input("Hugging Face API Key:", type="password")
+st.sidebar.success("✨ No API Key Required!\n100% Free & Unlimited.")
 
 st.sidebar.markdown("### ⚙️ Generation Settings")
 art_mode = st.sidebar.selectbox(
@@ -50,7 +45,7 @@ art_mode = st.sidebar.selectbox(
 
 num_images = st.sidebar.slider("Bulk Quantity (Images):", min_value=1, max_value=5, value=1)
 
-# Main Dashboard Header (Using safe Streamlit native components)
+# Main Dashboard Header
 st.title("🎨 NexusArt Pro Studio")
 st.write("Bulk high-resolution tracing, coloring books, and 3D flat-vector generator tool.")
 st.markdown("---")
@@ -65,9 +60,7 @@ with col2:
     generate_btn = st.button("🚀 Generate Bulk Art", use_container_width=True)
 
 if generate_btn:
-    if not api_key:
-        st.error("⚠️ Barahbani apni Hugging Face API Key config me ya sidebar me darj karein.")
-    elif not user_prompt:
+    if not user_prompt:
         st.error("⚠️ Barahbani kisi object ya theme ka naam likhein.")
     else:
         # Style mapping based on user selection
@@ -85,27 +78,34 @@ if generate_btn:
         cols = st.columns(num_images if num_images <= 3 else 3)
         
         try:
-            # Official Hugging Face Inference Client
-            client = InferenceClient("black-forest-labs/FLUX.1-schnell", token=api_key)
-            
             for i in range(num_images):
                 with st.spinner(f"Generating image {i+1} of {num_images}..."):
-                    image = client.text_to_image(final_prompt)
+                    # Using free public endpoint with unique seed for bulk variations
+                    seed = 42 + i
+                    encoded_prompt = urllib.parse.quote(final_prompt)
+                    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
                     
-                    target_col = cols[i % len(cols)]
-                    with target_col:
-                        st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_container_width=True)
+                    response = requests.get(image_url, timeout=60)
+                    
+                    if response.status_code == 200:
+                        image = Image.open(io.BytesIO(response.content))
                         
-                        buf = io.BytesIO()
-                        image.save(buf, format="PNG")
-                        byte_im = buf.getvalue()
-                        
-                        st.download_button(
-                            label=f"📥 Download #{i+1}",
-                            data=byte_im,
-                            file_name=f"{user_prompt.replace(' ', '_')}_v{i+1}.png",
-                            mime="image/png",
-                            key=f"dl_{i}"
-                        )
+                        target_col = cols[i % len(cols)]
+                        with target_col:
+                            st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
+                            
+                            buf = io.BytesIO()
+                            image.save(buf, format="PNG")
+                            byte_im = buf.getvalue()
+                            
+                            st.download_button(
+                                label=f"📥 Download #{i+1}",
+                                data=byte_im,
+                                file_name=f"{user_prompt.replace(' ', '_')}_v{i+1}.png",
+                                mime="image/png",
+                                key=f"dl_{i}"
+                            )
+                    else:
+                        st.error(f"Error on image {i+1}: Server responded with status {response.status_code}")
         except Exception as ex:
             st.error(f"Generation error: {ex}")
