@@ -31,13 +31,6 @@ st.markdown("""
         background: linear-gradient(90deg, #4338ca 0%, #2563eb 100%);
         box-shadow: 0 6px 8px rgba(0,0,0,0.15);
     }
-    .card {
-        padding: 20px;
-        border-radius: 12px;
-        background-color: white;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -63,7 +56,7 @@ st.title("🎨 NexusArt Pro Studio")
 st.write("Professional-grade bulk image generator for preschool curricula, worksheets, coloring books, and vector tracing.")
 st.markdown("---")
 
-# User Input Section inside a clean layout
+# User Input Section
 col1, col2 = st.columns([3, 1])
 with col1:
     user_prompt = st.text_input(
@@ -79,12 +72,12 @@ if generate_btn:
     if not user_prompt:
         st.error("⚠️ Barahbani kisi object, theme ya curriculum topic ka naam likhein.")
     else:
-        # Automatic Professional Style Enforcement (No need to repeat instructions)
+        # Style mapping
         if art_mode == "Classic Line Art (Tracing & Coloring Books)":
             style_suffix = ", minimalist coloring book page, pure white background, crisp black outlines, thick vector line art, no shading, zero gradients, ideal for kids tracing and printing."
         elif art_mode == "Color Tracing & Vector Illustration":
             style_suffix = ", clean vector illustration, vibrant flat colors, crisp outlines, pure white background, high quality educational children book art."
-        else: # Flat Colors with 3D Depth Feel
+        else:
             style_suffix = ", vector art with smooth clean flat colors, subtle soft vector shading giving a tactile 3D depth feel, pure crisp white background, high resolution studio quality."
 
         final_prompt = f"{user_prompt}{style_suffix}"
@@ -96,23 +89,20 @@ if generate_btn:
         try:
             for i in range(num_images):
                 with st.spinner(f"Rendering variant {i+1} of {num_images}..."):
-                    # Unique seed for gorgeous bulk variations
-                    seed = 2026 + i
+                    seed = 3000 + i
                     encoded_prompt = urllib.parse.quote(final_prompt)
-                    
-                    # High-performance robust image rendering endpoint
                     image_url = f"https://pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
                     
                     response = requests.get(image_url, timeout=60)
                     
-                    if response.status_code == 200:
+                    # Check if response is actually an image content-type
+                    if response.status_code == 200 and 'image' in response.headers.get('Content-Type', ''):
                         image = Image.open(io.BytesIO(response.content))
                         
                         target_col = cols[i % len(cols)]
                         with target_col:
-                            st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_container_width=True)
+                            st.image(image, caption=f"Variant {i+1}: {user_prompt}", use_column_width=True)
                             
-                            # Prepare download bytes
                             buf = io.BytesIO()
                             image.save(buf, format="PNG")
                             byte_im = buf.getvalue()
@@ -125,6 +115,6 @@ if generate_btn:
                                 key=f"dl_{i}_{seed}"
                             )
                     else:
-                        st.error(f"Error on image {i+1}: Could not render from server.")
+                        st.warning(f"Variant {i+1} ke liye server thoda busy tha, dobara try karein.")
         except Exception as ex:
             st.error(f"Generation error: {ex}")
